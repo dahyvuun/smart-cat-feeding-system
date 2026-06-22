@@ -13,13 +13,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.scfs.R
+import com.example.scfs.data.CatDto
 import kotlinx.coroutines.launch
 import com.example.scfs.data.CatInsert
 import com.example.scfs.data.SupabaseManager
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.auth.auth
 
 @Composable
-fun AddCatScreen(onNext: () -> Unit) {
+fun AddCatScreen(onNext: (String) -> Unit){
     var name by remember { mutableStateOf("Luna") }
     var weight by remember { mutableStateOf("") }
     var goal by remember { mutableStateOf("") }
@@ -105,18 +107,28 @@ fun AddCatScreen(onNext: () -> Unit) {
 
                     scope.launch {
                         try {
-                            SupabaseManager.client
+                            val userId = SupabaseManager.client.auth.currentUserOrNull()?.id
+
+                            if (userId == null) {
+                                debugText = "No user logged in"
+                                return@launch
+                            }
+
+                            val insertedCat = SupabaseManager.client
                                 .from("cats")
                                 .insert(
                                     CatInsert(
+                                        owner_user_id = userId,
                                         name = name,
                                         weight_kg = weight.toDoubleOrNull(),
                                         daily_food_goal_g = goal.toIntOrNull()
                                     )
-                                )
+                                ) {
+                                    select()
+                                }
+                                .decodeSingle<CatDto>()
 
-                            debugText = "Saved"
-                            onNext()
+                            onNext(insertedCat.id!!)
 
                         } catch (e: Exception) {
                             debugText = "Supabase Error: ${e.message}"

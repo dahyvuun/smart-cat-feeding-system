@@ -14,11 +14,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.scfs.screens.AddCatScreen
 import com.example.scfs.screens.AddMachineScreen
+import com.example.scfs.screens.AuthScreen
 import com.example.scfs.screens.HomeScreen
 import com.example.scfs.screens.MachineConnectedScreen
 import com.example.scfs.screens.TakePhotosScreen
 import com.example.scfs.screens.WelcomeScreen
 import com.example.scfs.ui.theme.SCFSTheme
+import com.example.scfs.data.SetupRepository
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,24 +37,39 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun SCFSApp() {
-
-    var currentScreen by remember {
-        mutableStateOf("welcome")
+    var currentCatId by remember { mutableStateOf<String?>(null) }
+    var currentScreen by remember { mutableStateOf("auth") }
+    val scope = rememberCoroutineScope()
+    fun goAfterLogin() {
+        scope.launch {
+            try {
+                currentScreen = SetupRepository.getNextScreen()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                currentScreen = "machine"
+            }
+        }
     }
 
     when (currentScreen) {
+        "auth" ->
+            AuthScreen(
+                onLoggedIn = {
+                    goAfterLogin()
+                }
+            )
 
         "welcome" ->
             WelcomeScreen(
                 onStart = {
-                    currentScreen = "machine"
+                    goAfterLogin()
                 }
             )
 
         "machine" ->
             AddMachineScreen(
                 onNext = {
-                    currentScreen = "connected"
+                    currentScreen = "cat"
                 }
             )
 
@@ -64,17 +82,20 @@ fun SCFSApp() {
 
         "cat" ->
             AddCatScreen(
-                onNext = {
+                onNext = { catId ->
+                    currentCatId = catId
                     currentScreen = "photos"
                 }
             )
 
         "photos" ->
             TakePhotosScreen(
+                catId = currentCatId ?: "",
                 onFinish = {
                     currentScreen = "home"
                 }
             )
+
         "home" ->
             HomeScreen()
     }

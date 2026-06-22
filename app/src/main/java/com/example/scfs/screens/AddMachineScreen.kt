@@ -12,9 +12,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.*
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.scfs.R
+import com.example.scfs.data.MachineInsert
+import com.example.scfs.data.SupabaseManager
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.from
+import kotlinx.coroutines.launch
 
 val Hanuman = FontFamily(
     Font(R.font.hanuman_regular),
@@ -31,6 +37,8 @@ fun AddMachineScreen(onNext: () -> Unit) {
     var machineName by remember { mutableStateOf("") }
     var wifi by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    var debugText by remember { mutableStateOf("") }
 
     Box(Modifier.fillMaxSize()) {
         Image(
@@ -84,20 +92,55 @@ fun AddMachineScreen(onNext: () -> Unit) {
 
             Spacer(Modifier.height(16.dp))
 
-            SCFSTextField(
+            SCFSPasswordField(
                 label = "Password",
                 value = password,
                 placeholder = "Enter Password",
                 onValueChange = { password = it }
             )
-
             Spacer(Modifier.weight(1f))
 
             SCFSButton(
                 text = "Add Machine",
-                onClick = onNext
+                onClick = {
+                    scope.launch {
+                        try {
+                            val userId = SupabaseManager.client.auth.currentUserOrNull()?.id
+                            if (userId == null) {
+                                debugText = "No user logged in"
+                                return@launch
+                            }
+
+                            val machineId = "machine-${System.currentTimeMillis()}"
+                            SupabaseManager.client
+                                .from("machines")
+                                .upsert(
+                                    MachineInsert(
+                                        id = machineId,
+                                        name = machineName.ifBlank { "Machine 1" }
+                                    )
+                                )
+
+                            SupabaseManager.client
+                                .from("machine_users")
+                                .upsert(
+                                    mapOf(
+                                        "machine_id" to machineId,
+                                        "user_id" to userId,
+                                        "role" to "owner"
+                                    )
+                                )
+
+                            debugText = ""
+                            onNext()
+                        } catch (e: Exception) {
+                            debugText = "Error: ${e.message}"
+                        }
+                    }
+                }
             )
 
+            Text(debugText)
             Spacer(Modifier.height(40.dp))
         }
     }
@@ -165,6 +208,46 @@ fun SCFSButton(
             fontWeight = FontWeight.ExtraBold,
             fontSize = 22.sp,
             color = Color(0xFF4A4A4A)
+        )
+    }
+}
+@Composable
+fun SCFSPasswordField(
+    label: String,
+    value: String,
+    placeholder: String,
+    onValueChange: (String) -> Unit
+) {
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            fontFamily = Harmattan,
+            fontSize = 20.sp,
+            color = Color(0xFF444444)
+        )
+
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = {
+                Text(
+                    placeholder,
+                    fontFamily = Harmattan,
+                    fontSize = 18.sp
+                )
+            },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            shape = RoundedCornerShape(6.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFF6D6D6D),
+                unfocusedBorderColor = Color(0xFF6D6D6D),
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent
+            )
         )
     }
 }

@@ -4,10 +4,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.Divider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.material3.Divider
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -18,9 +18,38 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.scfs.R
+import com.example.scfs.data.CatDto
+import com.example.scfs.data.DashboardCatDto
+import com.example.scfs.data.DashboardRepository
+import com.example.scfs.data.MachineDto
+import com.example.scfs.data.MachineStatusDto
 
 @Composable
 fun HomeScreen() {
+    var machine by remember { mutableStateOf<MachineDto?>(null) }
+    var cats by remember { mutableStateOf<List<CatDto>>(emptyList()) }
+    var error by remember { mutableStateOf("") }
+    var dashboardCats by remember { mutableStateOf<List<DashboardCatDto>>(emptyList()) }
+    var status by remember { mutableStateOf<MachineStatusDto?>(null) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val loadedCats = DashboardRepository.getDashboardCats()
+            dashboardCats = loadedCats
+
+            val firstMachineId = loadedCats.firstOrNull()?.machine_id
+            if (firstMachineId != null) {
+                status = DashboardRepository.getMachineStatus(firstMachineId)
+            }
+        } catch (e: Exception) {
+            error = e.message ?: "Dashboard loading failed"
+        }
+    }
+
+    val fillLevel = status?.food_level_percent ?: 50
+    val machineName = dashboardCats.firstOrNull()?.machine_name ?: "Machine"
+    val isOnline = status?.last_seen != null
+
     Box(Modifier.fillMaxSize()) {
         Image(
             painter = painterResource(R.drawable.bg_paw),
@@ -41,19 +70,33 @@ fun HomeScreen() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("☰", fontSize = 30.sp)
+
                 Spacer(Modifier.weight(1f))
+
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        "Machine 1",
+                        machineName,
                         fontFamily = Hanuman,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 26.sp,
                         color = Color(0xFF3F3F3F)
                     )
-                    Text("● Online", fontSize = 18.sp, color = Color(0xFF5EE86B))
+
+                    Text(
+                        if (isOnline) "● Online" else "● Offline",
+                        fontSize = 18.sp,
+                        color = if (isOnline) Color(0xFF5EE86B) else Color.Gray
+                    )
                 }
+
                 Spacer(Modifier.weight(1f))
+
                 Text("♧", fontSize = 28.sp)
+            }
+
+            if (error.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(error, color = Color(0xFF8A3A3A), fontFamily = Harmattan)
             }
 
             Spacer(Modifier.height(22.dp))
@@ -74,14 +117,16 @@ fun HomeScreen() {
 
                     Column(Modifier.weight(1f)) {
                         Text("Fill Level", fontFamily = Harmattan, fontSize = 20.sp)
+
                         Text(
-                            "50 %",
+                            "$fillLevel %",
                             fontFamily = Hanuman,
                             fontWeight = FontWeight.Bold,
                             fontSize = 26.sp
                         )
+
                         LinearProgressIndicator(
-                            progress = { 0.5f },
+                            progress = { fillLevel / 100f },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(10.dp),
@@ -100,8 +145,9 @@ fun HomeScreen() {
             ) {
                 Column(Modifier.padding(14.dp)) {
                     Text("Last Feeding", fontFamily = Harmattan, fontSize = 18.sp)
+
                     Text(
-                        "16.10 P.M.",
+                        "--:--",
                         fontFamily = Hanuman,
                         fontWeight = FontWeight.Bold,
                         fontSize = 26.sp
@@ -112,11 +158,11 @@ fun HomeScreen() {
                     Row {
                         Column(Modifier.weight(1f)) {
                             Text("Cats today", fontFamily = Harmattan, fontSize = 16.sp)
-                            Text("2", fontFamily = Hanuman, fontSize = 24.sp)
-                        }
+                            Text("${dashboardCats.size}", fontFamily = Hanuman, fontSize = 24.sp)                        }
+
                         Column(Modifier.weight(1f)) {
                             Text("Feedings today", fontFamily = Harmattan, fontSize = 16.sp)
-                            Text("5", fontFamily = Hanuman, fontSize = 24.sp)
+                            Text("0", fontFamily = Hanuman, fontSize = 24.sp)
                         }
                     }
                 }
@@ -131,8 +177,22 @@ fun HomeScreen() {
                 fontSize = 22.sp
             )
 
-            CatHomeCard("Luna", "52g / 65g", R.drawable.cat_placeholder_1)
-            CatHomeCard("Sophie", "52g / 65g", R.drawable.cat_placeholder_2)
+            if (dashboardCats.isEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "No cats found for this machine.",
+                    fontFamily = Harmattan,
+                    fontSize = 18.sp
+                )
+            } else {
+                dashboardCats.forEachIndexed { index, cat ->
+                    CatHomeCard(
+                        name = cat.cat_name,
+                        food = "0g / ${cat.daily_food_goal_g ?: 0}g",
+                        imageRes = if (index % 2 == 0) R.drawable.cat_placeholder_1 else R.drawable.cat_placeholder_2
+                    )
+                }
+            }
 
             Spacer(Modifier.weight(1f))
 
@@ -166,6 +226,7 @@ fun CatHomeCard(name: String, food: String, imageRes: Int) {
 
             Column(Modifier.weight(1f)) {
                 Text(name, fontFamily = Harmattan, fontSize = 18.sp)
+
                 Text(
                     food,
                     fontFamily = Hanuman,
@@ -174,7 +235,7 @@ fun CatHomeCard(name: String, food: String, imageRes: Int) {
                 )
 
                 LinearProgressIndicator(
-                    progress = { 0.8f },
+                    progress = { 0.2f },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(8.dp),
@@ -184,7 +245,7 @@ fun CatHomeCard(name: String, food: String, imageRes: Int) {
             }
 
             Text(
-                "Last seen\n10 min ago",
+                "Last seen\n--",
                 fontFamily = Harmattan,
                 fontSize = 12.sp
             )
