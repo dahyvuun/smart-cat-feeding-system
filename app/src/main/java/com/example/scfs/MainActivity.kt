@@ -97,6 +97,13 @@ fun SCFSApp() {
             )
 
         "home" ->
-            HomeScreen()
+            HomeScreen(
+                onAddMachine = {
+                    currentScreen = "machine"
+                },
+                onAddCat = {
+                    currentScreen = "cat"
+                }
+            )
     }
 }

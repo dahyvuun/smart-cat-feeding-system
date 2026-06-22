@@ -23,9 +23,13 @@ import com.example.scfs.data.DashboardCatDto
 import com.example.scfs.data.DashboardRepository
 import com.example.scfs.data.MachineDto
 import com.example.scfs.data.MachineStatusDto
+import androidx.compose.material3.IconButton
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(
+    onAddMachine: () -> Unit,
+    onAddCat: () -> Unit
+) {
     var machine by remember { mutableStateOf<MachineDto?>(null) }
     var cats by remember { mutableStateOf<List<CatDto>>(emptyList()) }
     var error by remember { mutableStateOf("") }
@@ -91,8 +95,11 @@ fun HomeScreen() {
 
                 Spacer(Modifier.weight(1f))
 
-                Text("♧", fontSize = 28.sp)
-            }
+                Image(
+                    painter = painterResource(R.drawable.notification_icon),
+                    contentDescription = null,
+                    modifier = Modifier.size(30.dp)
+                )            }
 
             if (error.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
@@ -136,6 +143,13 @@ fun HomeScreen() {
                     }
                 }
             }
+
+            Spacer(Modifier.height(8.dp))
+
+            PlusIconButton(
+                onClick = onAddMachine,
+                contentDescription = "Add machine"
+            )
 
             Spacer(Modifier.height(18.dp))
 
@@ -193,6 +207,12 @@ fun HomeScreen() {
                     )
                 }
             }
+            Spacer(Modifier.height(8.dp))
+
+            PlusIconButton(
+                onClick = onAddCat,
+                contentDescription = "Add cat"
+            )
 
             Spacer(Modifier.weight(1f))
 
@@ -213,15 +233,19 @@ fun CatHomeCard(name: String, food: String, imageRes: Int) {
             modifier = Modifier.padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Image(
-                painter = painterResource(imageRes),
-                contentDescription = null,
+            Box(
                 modifier = Modifier
-                    .size(54.dp)
+                    .size(44.dp)
                     .clip(RoundedCornerShape(50.dp)),
-                contentScale = ContentScale.Crop
-            )
-
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(imageRes),
+                    contentDescription = null,
+                    modifier = Modifier.size(37.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
             Spacer(Modifier.width(12.dp))
 
             Column(Modifier.weight(1f)) {
@@ -278,5 +302,26 @@ fun NavItem(icon: Int, label: String) {
             modifier = Modifier.size(24.dp)
         )
         Text(label, fontFamily = Harmattan, fontSize = 12.sp)
+    }
+}
+@Composable
+fun PlusIconButton(
+    onClick: () -> Unit,
+    contentDescription: String
+) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.size(34.dp)
+        ) {
+            Image(
+                painter = painterResource(R.drawable.plus_icon),
+                contentDescription = contentDescription,
+                modifier = Modifier.size(24.dp)
+            )
+        }
     }
 }
