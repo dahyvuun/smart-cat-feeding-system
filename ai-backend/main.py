@@ -53,6 +53,21 @@ async def supabase_get(table: str, params: dict = {}):
         r = await client.get(url, headers=headers)
         return r.json()
 
+async def supabase_upsert(table: str, data: dict, on_conflict: str):
+    headers = {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": f"resolution=merge-duplicates",
+    }
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            f"{SUPABASE_URL}/rest/v1/{table}?on_conflict={on_conflict}",
+            headers=headers,
+            json=data
+        )
+        return r.json()
+
 async def supabase_insert(table: str, data: dict):
     headers = {
         "apikey": SUPABASE_ANON_KEY,
@@ -173,6 +188,16 @@ def on_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode())
         print(f"Sensor data: {payload}")
+
+        # Upsert machine_status in Supabase
+        import asyncio
+        asyncio.run(supabase_upsert("machine_status", {
+            "machine_id": "scfs-machine-001",
+            "food_level_percent": payload.get("food_level_percent", 0),
+            "wifi_rssi": payload.get("wifi_rssi", 0),
+            "motion_detected": payload.get("motion", False),
+            "last_seen": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        }, on_conflict="machine_id"))
 
         # If motion detected, trigger ESP32-CAM
         if payload.get("motion"):
