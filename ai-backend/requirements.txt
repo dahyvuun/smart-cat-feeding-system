@@ -6,3 +6,4 @@ numpy
 httpx
 torch
 transformers
+python-multipart
